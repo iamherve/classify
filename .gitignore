@@ -4,9 +4,19 @@
 # local environment
 /env/
 
+# package installation
+classify.egg-info/
+*.egg-info/
+
 # others
 .vscode
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*.DS_Store
