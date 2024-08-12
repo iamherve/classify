@@ -3,3 +3,10 @@
 
 # local environment
 /env/
+
+# others
+.vscode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
