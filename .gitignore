@@ -1,0 +1,5 @@
+# security
+*.DS_Store
+
+# local environment
+/env/
