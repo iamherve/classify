@@ -1,8 +1,8 @@
-# ClassiFy
+# CLASSIFY
 
-`ClassiFy` is a deep learning library that helps classify new articles per category.
+`ClassiFy` is a deep learning library that helps classify news articles per category.
 
-## Categories
+## CATEGORIES
 
 At the moment, only the following categories are supported:
 - Technology
