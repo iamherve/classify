@@ -6,18 +6,15 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader, random_split
 from torch.nn.utils.rnn import pad_sequence
 from classify.data.raw import data
-
+from classify.src.config.config import hyperparams
 
 nlp = spacy.load("en_core_web_md")
-
 
 SEED = 1234
 random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
-
-texts, labels = zip(*data)
 
 
 def preprocess_text(text):
@@ -31,25 +28,11 @@ def preprocess_text(text):
     return tokens
 
 
-texts_preprocessed = [preprocess_text(text) for text in texts]
-
-
-def encode_labels(labels, all_labels):
-    labels_to_index = {label: index for index, label in enumerate(all_labels)}
-
-    multi_hot_encodings = torch.zeros(
-        (len(labels), len(all_labels)), dtype=torch.float32
-    )
-
-    for i, label in enumerate(labels):
-        label_index = labels_to_index[label]
-        multi_hot_encodings[i, label_index] = 1.0
-
-    return multi_hot_encodings
-
-
-all_labels = sorted(set(labels))
-labels_encoded = encode_labels(labels, all_labels)
+def encode_labels(labels):
+    unique_labels = sorted(set(labels))
+    label_to_idx = {label: idx for idx, label in enumerate(unique_labels)}
+    encoded_labels = [label_to_idx[label] for label in labels]
+    return encoded_labels, label_to_idx
 
 
 def collate_fn(batch):
@@ -58,6 +41,11 @@ def collate_fn(batch):
         [torch.from_numpy(text) for text in texts], batch_first=True, padding_value=0
     )
     return texts_padded, torch.stack(labels)
+
+
+texts, labels = zip(*data)
+texts_preprocessed = [preprocess_text(text) for text in texts]
+labels_encoded, label_to_idx = encode_labels(labels)
 
 
 class TextClassificationDataset(Dataset):
@@ -74,7 +62,6 @@ class TextClassificationDataset(Dataset):
 
 full_dataset = TextClassificationDataset(texts_preprocessed, labels_encoded)
 
-
 train_size = int(0.8 * len(full_dataset))
 evaluation_size = len(full_dataset) - train_size
 train_dataset, evaluation_dataset = random_split(
@@ -82,7 +69,7 @@ train_dataset, evaluation_dataset = random_split(
 )
 
 
-batch_size = 32
+batch_size = hyperparams["batch_size"]
 train_loader = DataLoader(
     train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn
 )
