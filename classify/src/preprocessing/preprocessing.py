@@ -10,6 +10,7 @@ from torch.nn.utils.rnn import pad_sequence
 from classify.data.raw import data
 from classify.src.config.config import hyperparams
 from classify.src.models.model import TextClassifier
+from classify.data.inference import inference_phrases
 
 nlp = spacy.load("en_core_web_md")
 
@@ -102,3 +103,37 @@ optimizer = optim.Adam(model.parameters())
 for epoch in range(hyperparams["num_epochs"]):
     avg_loss = train_model(model, train_loader, criterion, optimizer)
     print(f"Epoch {epoch+1}/{hyperparams['num_epochs']}, Loss: {avg_loss:.4f}")
+
+
+def inference(model, text, threshold=0.5):
+    model.eval()
+    preprocessed_text = preprocess_text(text)
+    input_tensor = torch.tensor(preprocessed_text).unsqueeze(0)
+
+    with torch.no_grad():
+        output = model(input_tensor)
+        probabilities = torch.sigmoid(output).squeeze()
+
+    idx_to_label = {idx: label for label, idx in label_to_idx.items()}
+    predicted_categories = []
+    category_probabilities = []
+    for idx, prob in enumerate(probabilities):
+        if prob > threshold:
+            label = idx_to_label[idx]
+            predicted_categories.append(label)
+            category_probabilities.append(prob)
+
+    all_probabilities = [
+        (idx_to_label[idx], prob.item()) for idx, prob in enumerate(probabilities)
+    ]
+
+    return predicted_categories, all_probabilities
+
+
+new_article = inference_phrases["entertainment"]
+predicted_categories, all_probabilities = inference(model, new_article)
+print("New article: ", new_article)
+print("Predicted categories: ", predicted_categories)
+print("All probabilities:")
+for label, prob in all_probabilities:
+    print(f"{label}: {prob:.4f}")
