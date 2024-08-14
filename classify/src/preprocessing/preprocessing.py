@@ -80,7 +80,14 @@ test_loader = DataLoader(
 
 output_dim = len(label_to_idx)
 
-model = TextClassifier(hyperparams["input_dim"], hyperparams["hidden_dim"], output_dim)
+model = TextClassifier(
+    hyperparams["input_dim"],
+    hyperparams["hidden_dim"],
+    output_dim,
+    dropout_rate=hyperparams["dropout_rate"],
+)
+
+optimizer = optim.Adam(model.parameters(), weight_decay=hyperparams["weight_decay"])
 
 
 def train_model(model, train_loader, criterion, optimizer):
