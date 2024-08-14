@@ -119,8 +119,33 @@ def evaluate_model(model, test_loader, criterion):
     return avg_loss, accuracy
 
 
+class EarlyStopping:
+    def __init__(self, patience=5, min_delta=0):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.counter = 0
+        self.best_loss = None
+        self.early_stop = False
+
+    def __call__(self, val_loss):
+        if self.best_loss is None:
+            self.best_loss = val_loss
+        elif val_loss > self.best_loss - self.min_delta:
+            self.counter += 1
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_loss = val_loss
+            self.counter = 0
+
+
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters())
+early_stopping = EarlyStopping(patience=3, min_delta=0.01)
+
+# Training loop with early stopping
+best_model_state = None
+best_accuracy = 0
 
 for epoch in range(hyperparams["num_epochs"]):
     avg_loss = train_model(model, train_loader, criterion, optimizer)
@@ -131,6 +156,23 @@ for epoch in range(hyperparams["num_epochs"]):
         f"Test Loss: {test_loss:.4f}",
         f"Test Accuracy: {test_accuracy:.4f}",
     )
+
+    # Save the best model
+    if test_accuracy > best_accuracy:
+        best_accuracy = test_accuracy
+        best_model_state = model.state_dict().copy()
+
+    # Early stopping check
+    early_stopping(test_loss)
+    if early_stopping.early_stop:
+        print("Early stopping triggered")
+        break
+
+
+# Load the best model
+if best_model_state is not None:
+    model.load_state_dict(best_model_state)
+    print(f"Loaded best model with accuracy: {best_accuracy:.4f}")
 
 
 final_loss, final_accuracy = evaluate_model(model, test_loader, criterion)
@@ -164,8 +206,14 @@ def inference(model, text, threshold=0.5):
 
 new_article = inference_phrases["entertainment"]
 predicted_categories, all_probabilities = inference(model, new_article)
+print("::::::::::::::::::::::::::::")
 print("New article: ", new_article)
 print("Predicted categories: ", predicted_categories)
 print("All probabilities:")
 for label, prob in all_probabilities:
     print(f"{label}: {prob:.4f}")
+print("::::::::::::::::::::::::::::")
+# Save the model
+torch.save(model.state_dict(), "text_classifier_model.pt")
+torch.save(label_to_idx, "label_to_idx.pt")
+print("Model and label mapping saved!!!!!")
