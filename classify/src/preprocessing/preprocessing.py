@@ -1,16 +1,18 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader, random_split
+from torch.nn.utils.rnn import pad_sequence
+
 import spacy
 import random
 import numpy as np
 
-from torch.utils.data import Dataset, DataLoader, random_split
-from torch.nn.utils.rnn import pad_sequence
 from classify.data.raw import data
 from classify.src.config.config import hyperparams
 from classify.src.models.model import TextClassifier
 from classify.data.inference import inference_phrases
+from classify.src.utils.plots import plot_loss_curves
 
 nlp = spacy.load("en_core_web_md")
 
@@ -154,9 +156,16 @@ early_stopping = EarlyStopping(patience=3, min_delta=0.01)
 best_model_state = None
 best_accuracy = 0
 
+train_losses = []
+test_losses = []
+
 for epoch in range(hyperparams["num_epochs"]):
     avg_loss = train_model(model, train_loader, criterion, optimizer)
     test_loss, test_accuracy = evaluate_model(model, test_loader, criterion)
+
+    train_losses.append(avg_loss)
+    test_losses.append(test_loss)
+
     print(
         f"Epoch {epoch+1}/{hyperparams['num_epochs']}",
         f"Train Loss: {avg_loss:.4f}",
@@ -220,7 +229,11 @@ print("All probabilities:")
 for label, prob in all_probabilities:
     print(f"{label}: {prob:.4f}")
 print("::::::::::::::::::::::::::::")
+
 # Save the model
 torch.save(model.state_dict(), "text_classifier_model.pt")
 torch.save(label_to_idx, "label_to_idx.pt")
 print("Model and label mapping saved!!!!!")
+
+# visualization
+plot_loss_curves(train_losses, test_losses)
