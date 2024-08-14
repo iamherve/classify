@@ -97,12 +97,44 @@ def train_model(model, train_loader, criterion, optimizer):
     return total_loss / len(train_loader)
 
 
+def evaluate_model(model, test_loader, criterion):
+    model.eval()
+    total_loss = 0
+    correct_predictions = 0
+    total_predictions = 0
+
+    with torch.no_grad():
+        for batch in test_loader:
+            inputs, labels = batch
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            total_loss += loss.item()
+
+            _, predicted = torch.max(outputs, 1)
+            correct_predictions += (predicted == labels).sum().item()
+            total_predictions += labels.size(0)
+
+    avg_loss = total_loss / len(test_loader)
+    accuracy = correct_predictions / total_predictions
+    return avg_loss, accuracy
+
+
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters())
 
 for epoch in range(hyperparams["num_epochs"]):
     avg_loss = train_model(model, train_loader, criterion, optimizer)
-    print(f"Epoch {epoch+1}/{hyperparams['num_epochs']}, Loss: {avg_loss:.4f}")
+    test_loss, test_accuracy = evaluate_model(model, test_loader, criterion)
+    print(
+        f"Epoch {epoch+1}/{hyperparams['num_epochs']}",
+        f"Train Loss: {avg_loss:.4f}",
+        f"Test Loss: {test_loss:.4f}",
+        f"Test Accuracy: {test_accuracy:.4f}",
+    )
+
+
+final_loss, final_accuracy = evaluate_model(model, test_loader, criterion)
+print(f"Final Test Loss: {final_loss:.4f}, Final Accuracy: {final_accuracy:.4f}")
 
 
 def inference(model, text, threshold=0.5):
