@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader, random_split
 from torch.nn.utils.rnn import pad_sequence
+from sklearn.metrics import f1_score
 
 import spacy
 import random
@@ -109,8 +110,8 @@ def train_model(model, train_loader, criterion, optimizer):
 def evaluate_model(model, test_loader, criterion):
     model.eval()
     total_loss = 0
-    correct_predictions = 0
-    total_predictions = 0
+    all_predictions = []
+    all_labels = []
 
     with torch.no_grad():
         for batch in test_loader:
@@ -120,12 +121,16 @@ def evaluate_model(model, test_loader, criterion):
             total_loss += loss.item()
 
             _, predicted = torch.max(outputs, 1)
-            correct_predictions += (predicted == labels).sum().item()
-            total_predictions += labels.size(0)
+            all_predictions.extend(predicted.cpu().tolist())
+            all_labels.extend(labels.cpu().tolist())
 
     avg_loss = total_loss / len(test_loader)
-    accuracy = correct_predictions / total_predictions
-    return avg_loss, accuracy
+    accuracy = sum(1 for p, l in zip(all_predictions, all_labels) if p == l) / len(
+        all_labels
+    )
+    f1 = f1_score(all_labels, all_predictions, average="weighted")
+
+    return avg_loss, accuracy, f1
 
 
 class EarlyStopping:
@@ -161,7 +166,7 @@ test_losses = []
 
 for epoch in range(hyperparams["num_epochs"]):
     avg_loss = train_model(model, train_loader, criterion, optimizer)
-    test_loss, test_accuracy = evaluate_model(model, test_loader, criterion)
+    test_loss, test_accuracy, test_f1 = evaluate_model(model, test_loader, criterion)
 
     train_losses.append(avg_loss)
     test_losses.append(test_loss)
@@ -171,6 +176,7 @@ for epoch in range(hyperparams["num_epochs"]):
         f"Train Loss: {avg_loss:.4f}",
         f"Test Loss: {test_loss:.4f}",
         f"Test Accuracy: {test_accuracy:.4f}",
+        f"Test F1 Score: {test_f1:.4f}",
     )
 
     # Save the best model
@@ -191,8 +197,10 @@ if best_model_state is not None:
     print(f"Loaded best model with accuracy: {best_accuracy:.4f}")
 
 
-final_loss, final_accuracy = evaluate_model(model, test_loader, criterion)
-print(f"Final Test Loss: {final_loss:.4f}, Final Accuracy: {final_accuracy:.4f}")
+final_loss, final_accuracy, final_f1 = evaluate_model(model, test_loader, criterion)
+print(
+    f"Final Test Loss: {final_loss:.4f}, Final Accuracy: {final_accuracy:.4f}, Final F1 Score: {final_f1:.4f}"
+)
 
 
 def inference(model, text, threshold=0.5):
